@@ -18,20 +18,18 @@ def main(run, config):
     os.environ['WANDB_ARTIFACT_DIR'] = '/hps/nobackup/birney/users/esther/wandb/artifacts/'
     os.environ['WANDB_CACHE_DIR'] = '/hps/nobackup/birney/users/esther/wandb/.cache/'
     os.environ['WANDB_TIMEOUT'] = '120'
-
-    # Set the device
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(torch.version.cuda)
+    device = ("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    print(f'Device is : {device}\n')
 
     utils.set_seeds()
 
     # Load the data
-    dataset = MedakaDataset(data_csv=config['data_csv'], direction_csv=config['direction_csv'], src_dir=config['data_dir'], transform=data.transform(resize_shape=(224, 224)), config=config)
+    data_factory = DataLoaderFactory(image_size=256, batch_size=32, num_workers=8, pin_memory=True)
+    train_loader, test_loader = data_factory.get_loaders("/Users/user/Documents/practice_images", "/Users/user/Documents/Model_test")
+    print(f"Number of images in train_loader: {len(train_loader.dataset)}")
+    print(f"Number of images in test_loader: {len(test_loader.dataset)}")
     
-    train_len = int(len(dataset) * config['train_split'])
-    val_len = len(dataset) - train_len
-
-    train_dataset, val_dataset = random_split(dataset, [train_len, val_len])
+    #train_dataset, val_dataset = random_split(dataset, [train_len, val_len])
 
     # Run model pipeline
     with run:
