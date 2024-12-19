@@ -1,6 +1,5 @@
-from torchvision.transforms import v2 as transforms
+from torchvision import datasets, transforms
 from torchvision.transforms.functional import InterpolationMode
-from torchvision import datasets
 from torch.utils.data import DataLoader
 
 """ 
