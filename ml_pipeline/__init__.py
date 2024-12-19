@@ -1,5 +1,7 @@
 import utils, models, data, train
-from data import MedakaDataset
+import sys
+#sys.path.append('./DataLoaderFactory.py')
+from data import DataLoaderFactory
 from models import AutoEncoderSigmoid, AutoEncoderRelu, AutoEncoderConv, AutoEncoderResNet, AutoEncoderVGGNet
 import os
 import torch
@@ -24,12 +26,25 @@ def main(run, config):
     utils.set_seeds()
 
     # Load the data
-    data_factory = DataLoaderFactory(image_size=256, batch_size=32, num_workers=8, pin_memory=True)
-    train_loader, test_loader = data_factory.get_loaders("/Users/user/Documents/practice_images", "/Users/user/Documents/Model_test")
-    print(f"Number of images in train_loader: {len(train_loader.dataset)}")
-    print(f"Number of images in test_loader: {len(test_loader.dataset)}")
-    
-    #train_dataset, val_dataset = random_split(dataset, [train_len, val_len])
+
+    # Initialize the DataLoaderFactory with desired parameters
+    data_factory = DataLoaderFactory(
+    image_size=256,  # Image size to resize
+    batch_size=32,   # Batch size for DataLoader
+    num_workers=8,   # Number of parallel workers
+    pin_memory=True  # Optimize for GPU memory transfers
+    )
+
+    # Get training and validation DataLoaders
+    train_loader, val_loader = data_factory.get_loaders(
+    input_dir="/Users/user/Documents/practice_images",  # Path to your dataset
+    val_split=0.2,                # 20% of data for validation
+    shuffle=True                  # Shuffle before splitting
+    )
+
+    # Print dataset sizes
+    print(f"Training samples: {len(train_loader.dataset)}")
+    print(f"Validation samples: {len(val_loader.dataset)}")
 
     # Run model pipeline
     with run:
@@ -52,13 +67,13 @@ def load_config(config_path):
     return config
 
 
-def make(train_dataset, val_dataset, config):
+def make(train_loader, val_loader, config, image_size=256):
     # Make the data
-    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config['batch_size'])
+    train_loader = train_loader
+    val_loader = val_loader
 
     # Make the model
-    num_input = 224*224 # 50176
+    num_input = image_size*image_size # 50176
     num_hidden_0 = 7168
     num_hidden_1 = 1024
     num_hidden_2 = 512
