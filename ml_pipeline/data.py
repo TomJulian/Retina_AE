@@ -1,12 +1,8 @@
+import os
 from torchvision import datasets, transforms
 from torchvision.transforms.functional import InterpolationMode
-from torch.utils.data import DataLoader
-
-""" 
-use example:
-data_factory = DataLoaderFactory(image_size=224, batch_size=32, num_workers=8, pin_memory=True)
-train_loader, test_loader = data_factory.get_loaders("/path/to/train", "/path/to/test")
-"""
+from torch.utils.data import DataLoader, Dataset, Subset
+import random
 
 
 class DataLoaderFactory:
@@ -31,13 +27,43 @@ class DataLoaderFactory:
             transforms.ToTensor(),
         ])
 
-    def get_loaders(self, train_input_dir, test_input_dir):
-        train_dataset = datasets.ImageFolder(root=train_input_dir, transform=self._transform_train())
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, 
+    def get_loaders(self, input_dir, val_split=0.2, shuffle=True):
+        """
+        Split the dataset into training and validation sets *before* applying transformations.
+
+        Args:
+            input_dir (str): Directory containing the image dataset.
+            val_split (float): Fraction of the dataset to use for validation.
+            shuffle (bool): Whether to shuffle the dataset before splitting.
+
+        Returns:
+            tuple: train_loader, val_loader
+        """
+        # Gather all file paths
+        dataset = datasets.ImageFolder(root=input_dir)
+        dataset_size = len(dataset)
+        indices = list(range(dataset_size))
+
+        if shuffle:
+            random.seed(42)  # Ensure reproducibility
+            random.shuffle(indices)
+
+        # Split indices
+        val_size = int(val_split * dataset_size)
+        train_indices, val_indices = indices[val_size:], indices[:val_size]
+
+        # Subset datasets without transformations
+        train_dataset = Subset(dataset, train_indices)
+        val_dataset = Subset(dataset, val_indices)
+
+        # Apply transformations to subsets
+        train_dataset.dataset = datasets.ImageFolder(root=input_dir, transform=self._transform_train())
+        val_dataset.dataset = datasets.ImageFolder(root=input_dir, transform=self._transform_test())
+
+        # Create data loaders
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True,
                                   num_workers=self.num_workers, pin_memory=self.pin_memory)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False,
+                                num_workers=self.num_workers, pin_memory=self.pin_memory)
 
-        test_dataset = datasets.ImageFolder(root=test_input_dir, transform=self._transform_test())
-        test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, 
-                                 num_workers=self.num_workers, pin_memory=self.pin_memory)
-
-        return train_loader, test_loader
+        return train_loader, val_loader
